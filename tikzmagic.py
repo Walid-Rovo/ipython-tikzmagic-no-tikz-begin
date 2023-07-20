@@ -227,7 +227,7 @@ class TikzMagics(Magics):
         help='Name of ImageMagick executable, optionally with full path. Default is "convert"'
         )
     @argument('-po', '--pictureoptions', action='store', type=str, default='',
-        help='Additional arguments to pass to the \\tikzpicture command.'
+        help='Additional arguments to pass to the \\tikzpicture command not supported on this fork of tikzmagic, please add your own `\\begin{tikzpicture[...]}`.'
         )
 
     @argument('--showlatex', action='store_true',
@@ -355,13 +355,11 @@ class TikzMagics(Magics):
             tex.append('''%s\n''' % args.preamble)
 
         tex.append('''\\begin{document}
-\\begin{%(tikz_env)s}[scale=%(scale)s,%(picture_options)s]
 ''' % locals())
 
         tex.append(code)
 
         tex.append('''
-\\end{%(tikz_env)s}
 \\end{document}
 ''' % locals())
 
