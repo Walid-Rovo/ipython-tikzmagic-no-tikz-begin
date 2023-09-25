@@ -30,6 +30,7 @@ from builtins import str
 import sys
 import tempfile
 from glob import glob
+import os.path
 from os import chdir, getcwd, environ, pathsep
 from subprocess import call, Popen, PIPE
 from shutil import rmtree, copy
@@ -104,7 +105,7 @@ class TikzMagics(Magics):
 
 
     def _run_latex(self, code, encoding, dir):
-        f = open(dir + '/tikz.tex', 'w', encoding=encoding)
+        f = open(os.path.join(dir, 'tikz.tex'), 'w', encoding=encoding)
         f.write(code)
         f.close()
 
@@ -379,7 +380,7 @@ class TikzMagics(Magics):
         elif plot_format == 'svg':
             self._convert_pdf_to_svg(plot_dir)
 
-        image_filename = "%s/tikz.%s" % (plot_dir, plot_format)
+        image_filename = os.path.join(plot_dir, f'tikz.{plot_format}')
 
         # Publish image
         try:
