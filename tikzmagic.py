@@ -102,6 +102,53 @@ class TikzMagics(Magics):
         svg.setAttribute('height', '%dpx' % height)
         return svg.toxml()
 
+    def _construct_latex(
+        self, 
+        tikz_code,
+        imagemagick_path, 
+        add_params, 
+        width, 
+        height,
+        tikz_options,
+        tikz_package,
+        latex_packages,
+        tikz_libraries,
+        pgfplots_libraries,
+        preamble=None,
+    ):
+        tex = []
+        
+        tex.append(f'''
+    \\documentclass[convert={{convertexe={{{imagemagick_path}}},{add_params}size={width}x{height},outext=.png}},border=0pt]{{standalone}}
+    ''')
+        
+        tex.append(f'\\usepackage[{tikz_options}]{{{tikz_package}}}\n')
+
+        if latex_packages != [""]:
+            for pkg in latex_packages:
+                tex.append(f"\\usepackage{{{pkg}}}\n")
+
+        if tikz_libraries != [""]:
+            for lib in tikz_libraries:
+                tex.append(f"\\usetikzlibrary{{{lib}}}\n")
+
+        if pgfplots_libraries != [""]:
+            for lib in pgfplots_libraries:
+                tex.append(f"\\usepgfplotslibrary{{{lib}}}\n")
+
+        if preamble is not None:
+            tex.append(f'{preamble}\n')
+
+        tex.append('\\begin{document}\n')
+
+        tex.append(tikz_code)
+
+        tex.append('''
+    \\end{document}
+    ''')
+        
+        tikz_code = str('').join(tex)
+        return tikz_code
 
     def _run_latex(self, code, encoding, dir):
         f = open(dir + '/tikz.tex', 'w', encoding=encoding)
@@ -292,9 +339,9 @@ class TikzMagics(Magics):
         width, height = size.split(',')
         plot_format = args.format
         encoding = args.encoding
-        tikz_library = args.library.split(',')
-        pgfplots_library = args.pgfplotslibrary.split(',')
-        latex_package = args.package.split(',')
+        tikz_libraries = args.library.split(',')
+        pgfplots_libraries = args.pgfplotslibrary.split(',')
+        latex_packages = args.package.split(',')
         imagemagick_path = args.imagemagick
         picture_options = args.pictureoptions
         tikz_options = args.tikzoptions
@@ -332,38 +379,19 @@ class TikzMagics(Magics):
             tikz_env = 'tikzpicture'
             tikz_package = 'tikz'
 
-        tex = []
-        tex.append('''
-\\documentclass[convert={convertexe={%(imagemagick_path)s},%(add_params)ssize=%(width)sx%(height)s,outext=.png},border=0pt]{standalone}
-''' % locals())
-
-        tex.append('\\usepackage[%(tikz_options)s]{%(tikz_package)s}\n' % locals())
-
-        if latex_package != [""]:
-            for pkg in latex_package:
-                tex.append("\\usepackage{%s}\n" % pkg)
-
-        if tikz_library != [""]:
-            for lib in tikz_library:
-                tex.append("\\usetikzlibrary{%s}\n" % lib)
-
-        if pgfplots_library != [""]:
-            for lib in pgfplots_library:
-                tex.append("\\usepgfplotslibrary{%s}\n" % lib)
-
-        if args.preamble is not None:
-            tex.append('''%s\n''' % args.preamble)
-
-        tex.append('''\\begin{document}
-''' % locals())
-
-        tex.append(code)
-
-        tex.append('''
-\\end{document}
-''' % locals())
-
-        code = str('').join(tex)
+        code = self._construct_latex(
+            code,
+            imagemagick_path,
+            add_params,
+            width,
+            height,
+            tikz_options,
+            tikz_package,
+            latex_packages,
+            tikz_libraries,
+            pgfplots_libraries,
+            args.preamble,      
+        )
 
         if args.showlatex:
             print(code)
