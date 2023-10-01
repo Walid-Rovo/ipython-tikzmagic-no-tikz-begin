@@ -30,9 +30,11 @@ from builtins import str
 import sys
 import tempfile
 from glob import glob
-from os import chdir, getcwd, environ, pathsep
+import os
 from subprocess import call, Popen, PIPE
 from shutil import rmtree, copy
+from PIL import Image
+import fitz
 from xml.dom import minidom
 
 from IPython.core.displaypub import publish_display_data
@@ -155,22 +157,22 @@ class TikzMagics(Magics):
         f.write(code)
         f.close()
 
-        current_dir = getcwd()
-        chdir(dir)
+        current_dir = os.getcwd()
+        os.chdir(dir)
 
         print_log = False
         log = None
         stdout = bytes()
         stderr = bytes()
 
-        # Set the TEXINPUTS environment variable, which allows the tikz code
+        # Set the TEXINPUTS os.environment variable, which allows the tikz code
         # to refence files relative to the notebook (includes, packages, ...)
-        env = environ.copy()
+        env = os.environ.copy()
         if 'TEXINPUTS' in env:
-            env['TEXINPUTS'] =  current_dir + pathsep + env['TEXINPUTS']
+            env['TEXINPUTS'] =  current_dir + os.pathsep + env['TEXINPUTS']
         else:
-            env['TEXINPUTS'] =  '.' + pathsep + current_dir + pathsep*2
-            # note that the trailing double pathsep will insert the standard
+            env['TEXINPUTS'] =  '.' + os.pathsep + current_dir + os.pathsep*2
+            # note that the trailing double os.pathsep will insert the standard
             # search path (otherwise we would lose access to all packages)
 
         def show(header, body):
@@ -200,36 +202,47 @@ class TikzMagics(Magics):
             show("stdout", stdout.decode("utf-8"))
             show("stderr", stderr.decode("utf-8"))
 
-        chdir(current_dir)
+        os.chdir(current_dir)
 
 
     def _convert_pdf_to_svg(self, dir):
-        current_dir = getcwd()
-        chdir(dir)
+        current_dir = os.getcwd()
+        os.chdir(dir)
 
         try:
-            retcode = call("pdf2svg tikz.pdf tikz.svg", shell=True)
-            if retcode != 0:
-                print("pdf2svg terminated with signal", -retcode, file=sys.stderr)
-        except OSError as e:
-            print("pdf2svg execution failed:", e, file=sys.stderr)
+            # Open the PDF using PyMuPDF within a with statement
+            with fitz.open("tikz.pdf") as doc:
+                # Assuming you want to convert the first page to SVG
+                page = doc[0]
+                svg_data = page.get_svg_image()
+                
+                # Save the SVG data to a file
+                with open("tikz.svg", "w") as f:
+                    f.write(svg_data)
+            
+        except Exception as e:
+            print("Conversion failed:", e, file=sys.stderr)
 
-        chdir(current_dir)
+        os.chdir(current_dir)
 
 
-    def _convert_png_to_jpg(self, dir, imagemagick_path):
-        current_dir = getcwd()
-        chdir(dir)
+    def _convert_png_to_jpg(self, dir):
+        current_dir = os.getcwd()
+        os.chdir(dir)
 
         try:
-            retcode = call("%s tikz.png -quality 100 -background white -flatten tikz.jpg"
-                            % imagemagick_path, shell=True)
-            if retcode != 0:
-                print("convert terminated with signal", -retcode, file=sys.stderr)
-        except OSError as e:
-            print("convert execution failed:", e, file=sys.stderr)
+            # Open the PNG image using Pillow within a with statement
+            with Image.open("tikz.png") as img:
+                # Ensure it's in RGB mode (in case the PNG has an alpha channel)
+                rgb_img = img.convert('RGB')
+                
+                # Save the image in JPG format with maximum quality
+                rgb_img.save("tikz.jpg", "JPEG", quality=100)
+            
+        except Exception as e:
+            print("Conversion failed:", e, file=sys.stderr)
 
-        chdir(current_dir)
+        os.chdir(current_dir)
 
 
     @skip_doctest
@@ -390,7 +403,7 @@ class TikzMagics(Magics):
             latex_packages,
             tikz_libraries,
             pgfplots_libraries,
-            args.preamble,      
+            args.preamble,
         )
 
         if args.showlatex:
